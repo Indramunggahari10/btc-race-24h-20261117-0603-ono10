@@ -82,16 +82,21 @@ await runBars({
         if (close * 100n > stopOutPrice * (100n + REENTRY_PERCENT)) {
           stopOutPrice = null;
           peakSinceEntry = close;
-          if (state.cash < minNotional) return [];
-          return [{ side: 'buy', symbol: SYMBOL, notional_quote_units: state.cash, max_slippage_bps: MAX_SLIPPAGE_BPS }];
+          const room = state.weightRoom(SYMBOL);
+          const spend = state.cash < room ? state.cash : room;
+          if (spend < minNotional) return [];
+          return [{ side: 'buy', symbol: SYMBOL, notional_quote_units: spend, max_slippage_bps: MAX_SLIPPAGE_BPS }];
         }
         return [];
       }
-      // Buy the dip below the anchor, with the whole cash balance.
+      // Buy the dip below the anchor, with the whole cash balance, capped by
+      // the harness's per-symbol weight limit so the order is never refused.
       if (close * 1000n < ref * (1000n - DIP_PER_MILLE)) {
         peakSinceEntry = close;
-        if (state.cash < minNotional) return [];
-        return [{ side: 'buy', symbol: SYMBOL, notional_quote_units: state.cash, max_slippage_bps: MAX_SLIPPAGE_BPS }];
+        const room = state.weightRoom(SYMBOL);
+        const spend = state.cash < room ? state.cash : room;
+        if (spend < minNotional) return [];
+        return [{ side: 'buy', symbol: SYMBOL, notional_quote_units: spend, max_slippage_bps: MAX_SLIPPAGE_BPS }];
       }
       return [];
     }
